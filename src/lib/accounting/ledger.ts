@@ -93,6 +93,7 @@ export async function repostExpense(tx: Tx, expenseId: string) {
         amountCents: toCents(l.amount),
         taxCents: toCents(l.taxAmount),
         taxAccountId: l.tax?.accountId,
+        taxRecoverable: l.tax?.isRecoverable,
       })),
     },
     map,

@@ -79,6 +79,16 @@ describe("postExpense", () => {
     expect(balanceOf(p.lines, "bank")).toBe(-102300);
   });
 
+  it("adds non-recoverable tax to the expense cost", () => {
+    const p = postExpense(
+      { ...expense, lines: [{ accountId: "general", amountCents: 2000, taxCents: 300, taxAccountId: "tax", taxRecoverable: false }] },
+      map,
+    )!;
+    expect(balanceOf(p.lines, "general")).toBe(2300);
+    expect(balanceOf(p.lines, "tax")).toBe(0);
+    expect(balanceOf(p.lines, "bank")).toBe(-2300);
+  });
+
   it("credits accounts payable for bills on terms", () => {
     const p = postExpense({ ...expense, settlement: "ON_TERMS", status: "UNPAID" }, map)!;
     expect(balanceOf(p.lines, "ap")).toBe(-102300);

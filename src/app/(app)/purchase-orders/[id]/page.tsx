@@ -5,6 +5,7 @@ import { ActionButton } from "@/components/ActionButton";
 import { AttachmentsPanel } from "@/components/AttachmentsPanel";
 import { DocumentView } from "@/components/DocumentView";
 import { PageHeader } from "@/components/PageHeader";
+import { ScaledPreview } from "@/components/ScaledPreview";
 import { StatusBadge } from "@/components/StatusBadge";
 import { db } from "@/lib/db";
 import { brandingStyle, purchaseOrderDocument, toDocumentOrg } from "@/lib/document";
@@ -16,7 +17,7 @@ export default async function POPage({ params }: { params: Promise<{ id: string 
   const org = await requireOrganization();
   const po = await db.purchaseOrder.findFirst({
     where: { id, organizationId: org.id },
-    include: { contact: true, lines: { orderBy: { position: "asc" } }, attachments: true, expense: true },
+    include: { contact: true, lines: { include: { tax: true }, orderBy: { position: "asc" } }, attachments: true, expense: true },
   });
   if (!po) notFound();
   const open = po.status === "DRAFT" || po.status === "SENT";
@@ -71,8 +72,10 @@ export default async function POPage({ params }: { params: Promise<{ id: string 
         </div>
       )}
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="min-w-0 overflow-x-auto rounded-xl border border-slate-200">
-          <DocumentView org={toDocumentOrg(org)} doc={purchaseOrderDocument(org, po)} style={brandingStyle(org)} />
+        <div className="min-w-0 overflow-hidden rounded-xl border border-slate-200">
+          <ScaledPreview>
+            <DocumentView org={toDocumentOrg(org)} doc={purchaseOrderDocument(org, po)} style={brandingStyle(org)} />
+          </ScaledPreview>
         </div>
         <div className="space-y-6">
           <section className="card p-5 text-sm text-slate-600">

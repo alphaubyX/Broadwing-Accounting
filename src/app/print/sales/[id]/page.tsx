@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function PrintSale({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const org = await requireOrganization();
-  const sale = await db.sale.findFirst({ where: { id, organizationId: org.id }, include: { contact: true, lines: { orderBy: { position: "asc" } } } });
+  const sale = await db.sale.findFirst({ where: { id, organizationId: org.id }, include: { contact: true, lines: { include: { tax: true }, orderBy: { position: "asc" } } } });
   if (!sale) notFound();
   return (
     <main className="min-h-screen bg-slate-100 py-6 print:bg-white print:py-0">

@@ -5,7 +5,7 @@
 1. **Simple on the surface, correct underneath.** Users see sales, expenses and purchase orders. The app keeps a real double-entry general ledger behind them.
 2. **The ledger is derived, not typed.** Journal entries are generated from source documents by pure functions (`src/lib/accounting/posting.ts`). When a document changes, its journal entries are deleted and regenerated inside the same database transaction, so the books always match the documents.
 3. **Every record belongs to an organization.** All tables carry `organizationId`. The app currently runs in *single-organization mode* (`src/lib/org.ts` picks the first organization). Moving to multi-tenant under Broadwing's central identity means changing that one function.
-4. **No auth yet, by design.** Logins and users will come from the central Broadwing platform. The integration point is `requireOrganization()` in `src/lib/org.ts`.
+4. **No sign-in yet, by design.** Logins will come from the central Broadwing platform. `OrgUser` already records who has access to an organization and with which role (Owner, Admin, Editor, Viewer; see `src/lib/roles.ts`). Roles are not enforced until sign-in exists. The integration point is `requireOrganization()` in `src/lib/org.ts`.
 
 ## Main flows and their postings
 
@@ -20,7 +20,15 @@
 | Purchase order | *(no posting: a commitment, not a transaction)* | |
 | PO → Convert to expense | becomes a bill (see above) | |
 
-Tax on purchases is debited to the same tax account that sales tax is credited to, so its balance is the net amount owed to the tax authority. Prices are tax-exclusive.
+Tax on purchases is debited to the same tax account that sales tax is credited to, so its balance is the net amount owed to the tax authority. A tax marked **not recoverable** (for example FED on card charges) is debited to the expense category instead, because it is part of the cost. Prices are tax-exclusive. Invoices show one tax line per tax, with your registration number when "Show tax number on invoices" is on.
+
+## Fiscal year and currency
+
+The fiscal year is defined by its end date (month and day, `src/lib/fiscal.ts`). It drives the default report period and "profit this fiscal year" on the dashboard. The business currency can only change while there are no journal entries, because amounts are never converted.
+
+## Data export
+
+`src/lib/export.ts` builds the exports served by `/api/export/[kind]`: `transactions.xlsx` (ExcelJS), `transactions.csv` (journal lines, with spreadsheet-formula injection guarded) and `receipts.zip` (JSZip, one folder per transaction number).
 
 Which accounts are used for receivables, payables, tax, the default bank and the default categories is configurable under **Settings → Account mapping** (`AccountMapping` table, keys in `src/lib/accounting/mapping.ts`).
 
@@ -54,7 +62,8 @@ src/app/(app)/**/actions.ts     server actions per module
 
 ## Not yet built (suggested next steps)
 
-- Central Broadwing identity (users, roles) and multi-organization switching
+- Central Broadwing sign-in, enforcing the recorded user roles, and multi-organization switching
+- Estimates/quotes (Wave's "Invoices and estimates")
 - Opening balances and manual journal entries (the `MANUAL` journal source already exists)
 - Bank feeds or CSV import, and bank reconciliation
 - Emailing invoices and POs, plus server-generated PDFs

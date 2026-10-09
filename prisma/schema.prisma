@@ -16,26 +16,28 @@ datasource db {
 // ─── Organization & settings ─────────────────────────────────────────────────
 
 model Organization {
-  id                   String   @id @default(cuid())
-  name                 String
-  legalName            String?
-  email                String?
-  phone                String?
-  website              String?
-  addressLine1         String?
-  addressLine2         String?
-  city                 String?
-  state                String?
-  postalCode           String?
-  country              String?
-  taxNumber            String?
-  taxNumberLabel       String   @default("Tax number")
-  currency             String   @default("USD")
-  fiscalYearStartMonth Int      @default(1) // 1 = January
-  defaultPaymentTerms  Int      @default(30) // days
-  logoPath             String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  name                String
+  legalName           String?
+  email               String?
+  phone               String?
+  website             String?
+  addressLine1        String?
+  addressLine2        String?
+  city                String?
+  state               String?
+  postalCode          String?
+  country             String?
+  taxNumber           String?
+  taxNumberLabel      String   @default("Tax number")
+  currency            String   @default("USD")
+  fiscalYearEndMonth  Int      @default(12) // 1 = January
+  fiscalYearEndDay    Int      @default(31)
+  defaultPaymentTerms Int      @default(30) // days
+  logoPath            String?
+  plan                String   @default("STARTER") // subscription plan, managed centrally by Broadwing later
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   branding        Branding?
   accounts        Account[]
@@ -49,6 +51,37 @@ model Organization {
   journalEntries  JournalEntry[]
   attachments     Attachment[]
   sequences       Sequence[]
+  users           OrgUser[]
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  OWNER // full access, cannot be removed
+  ADMIN // full access including settings and users
+  EDITOR // can create and edit transactions
+  VIEWER // read-only
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+}
+
+/// People with access to this organization. Sign-in itself will be handled by
+/// Broadwing's central identity service; this table holds the role per organization.
+model OrgUser {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name            String?
+  email           String
+  role            UserRole     @default(EDITOR)
+  canSendInvoices Boolean      @default(false)
+  status          UserStatus   @default(INVITED)
+  createdAt       DateTime     @default(now())
+
+  @@unique([organizationId, email])
 }
 
 /// Look & layout of printed documents (invoices, purchase orders).
@@ -58,7 +91,8 @@ model Branding {
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   accentColor     String       @default("#2f6fed")
   font            String       @default("sans") // sans | serif | mono
-  layout          String       @default("classic") // classic | modern | compact
+  layout          String       @default("contemporary") // contemporary | modern | classic | compact
+  showLogo        Boolean      @default(true)
   logoPosition    String       @default("left") // left | center | right
   addressPosition String       @default("right") // left | right
   showTaxNumber   Boolean      @default(true)
@@ -153,6 +187,11 @@ model Tax {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
+  abbreviation   String
+  description    String?
+  taxNumber      String? // your registration number for this tax
+  showTaxNumber  Boolean      @default(false) // print the number next to the tax on invoices
+  isRecoverable  Boolean      @default(true) // tax paid on purchases can be claimed back
   rate           Decimal      @db.Decimal(7, 3) // percent, e.g. 15.000
   accountId      String
   account        Account      @relation(fields: [accountId], references: [id])

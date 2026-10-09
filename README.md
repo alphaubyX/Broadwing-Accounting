@@ -10,12 +10,15 @@ The goal is that anyone can set it up and use it alone, without long configurati
 
 | Area | What you can do |
 | --- | --- |
-| **Setup** | A one-page wizard: business name, currency, address, tax number and an optional VAT/sales-tax rate. It creates a ready-made chart of accounts. |
-| **Settings → Business details** | Logo upload, legal name, address, contact details, tax-number label (VAT / GST / TRN…), currency, fiscal year and default payment terms. |
-| **Settings → Invoice & PO design** | Template (classic / modern / compact), accent colour, font, logo position and address position, plus titles, default notes, footers and numbering prefixes. Includes a **live preview**. |
-| **Settings → Chart of accounts** | Add, edit and archive accounts. Each account type knows its debit/credit side, so you never choose debit or credit yourself. |
-| **Settings → Account mapping** | Choose which accounts are used for the automatic entries (receivables, payables, tax, default bank, and so on). |
-| **Settings → Taxes** | VAT / sales-tax rates. |
+| **Setup** | A one-page wizard: your name and email (you become the owner), business name, currency, fiscal year end, address, tax number and an optional sales tax. It creates a ready-made chart of accounts. |
+| **Settings → Business profile** | Legal name, address, contact details and tax registration number (with your own label, such as TRN, NTN or VAT no.). |
+| **Settings → Users** | Invite users as Admin, Editor (optionally allowed to send invoices) or Viewer; edit or remove them. The owner is fixed. *Sign-in comes later from the central Broadwing account.* |
+| **Settings → Invoice customization** | Logo (upload, change, remove, display on/off), accent colour (swatches, colour picker or hex), templates (**Contemporary**, Modern, Classic, Compact) with thumbnails and a **live preview**, font, logo and address position, payment terms, default notes, footers and numbering. |
+| **Settings → Dates & currency** | Fiscal year end (month and day). The business currency is locked once the first transaction is recorded. |
+| **Settings → Sales taxes** | Create, edit and delete taxes: name, abbreviation, description, rate, your tax number (optionally printed on invoices, e.g. `GST 16% (3092834)`) and whether the tax is **recoverable**. |
+| **Settings → Chart of accounts / Account mapping** | Add, edit and archive accounts. Each account type knows its debit/credit side. Mapping chooses which accounts receive the automatic entries. |
+| **Settings → Manage subscription** | Shows the current plan (billing will be managed centrally by Broadwing). |
+| **Settings → Data export** | All transactions **for Excel** (one sheet each for journal, sales, expenses, payments, POs, accounts and contacts), all transactions **as CSV**, and all **receipts as a ZIP** (one folder per transaction). |
 | **Sales** | Invoices (the customer pays later) or cash sales (paid now). Drafts, approval, payments, part payments, void, a branded print/PDF view and attachments. |
 | **Expenses** | **One screen for all purchases and expenses**: either *Already paid* (from bank, cash or card) or *Pay later* (a bill). Split across categories, add tax, and **attach a receipt or take a photo with the camera**, at entry time or later. |
 | **Purchase orders** | Branded POs to vendors, with **Convert to expense** when the bill arrives. |
@@ -24,7 +27,7 @@ The goal is that anyone can set it up and use it alone, without long configurati
 
 Every transaction gets a unique number, such as `INV-0001`, `EXP-0001`, `PO-0001` or `PAY-0001`. Each sale and expense also shows the accounting entries behind it.
 
-Users and logins are **intentionally not included**. They will come from Broadwing's central identity service later (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)).
+Logins are **not included yet**. Users and their roles are recorded under Settings → Users, and sign-in will come from Broadwing's central identity service later (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)).
 
 ## Tech stack
 

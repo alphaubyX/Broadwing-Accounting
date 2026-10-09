@@ -5,6 +5,7 @@ import { Field } from "@/components/Field";
 import { FormError } from "@/components/FormError";
 import { SubmitButton } from "@/components/SubmitButton";
 import { CURRENCIES } from "@/lib/currencies";
+import { FiscalYearEndFields } from "@/components/FiscalYearEndFields";
 import { setupOrganization } from "./actions";
 
 export function SetupForm() {
@@ -13,8 +14,18 @@ export function SetupForm() {
     <form action={action} className="card space-y-6 p-6">
       <FormError error={state.error} />
       <section className="grid gap-4 sm:grid-cols-2">
+        <h2 className="text-sm font-semibold text-slate-900 sm:col-span-2">About you</h2>
+        <Field label="Your name">
+          <input name="ownerName" className="input" autoComplete="name" autoFocus />
+        </Field>
+        <Field label="Your email" hint="You'll be the owner of this business">
+          <input name="ownerEmail" type="email" className="input" required autoComplete="email" />
+        </Field>
+      </section>
+      <section className="grid gap-4 sm:grid-cols-2">
+        <h2 className="text-sm font-semibold text-slate-900 sm:col-span-2">Your business</h2>
         <Field label="Business name" className="sm:col-span-2">
-          <input name="name" className="input" required autoFocus placeholder="Broadwing Trading" />
+          <input name="name" className="input" required placeholder="Broadwing Trading" />
         </Field>
         <Field label="Legal name" hint="If different from the business name">
           <input name="legalName" className="input" />
@@ -46,6 +57,7 @@ export function SetupForm() {
         <Field label="Tax / VAT number">
           <input name="taxNumber" className="input" />
         </Field>
+        <FiscalYearEndFields />
       </section>
       <section className="rounded-lg bg-slate-50 p-4">
         <div className="mb-3 text-sm font-medium text-slate-700">Do you charge sales tax or VAT? (optional)</div>

@@ -1,18 +1,19 @@
-import { requireOrganization } from "@/lib/org";
 import { brandingStyle, toDocumentOrg } from "@/lib/document";
-import { BrandingForm } from "./BrandingForm";
+import { requireOrganization } from "@/lib/org";
+import { InvoiceSettingsForm } from "./InvoiceSettingsForm";
 
-export const metadata = { title: "Invoice & PO design" };
+export const metadata = { title: "Invoice customization" };
 
-export default async function BrandingPage() {
+export default async function InvoiceSettingsPage() {
   const org = await requireOrganization();
   const b = org.branding;
   return (
-    <BrandingForm
+    <InvoiceSettingsForm
       org={toDocumentOrg(org)}
       currency={org.currency}
       initial={{
         ...brandingStyle(org),
+        defaultPaymentTerms: String(org.defaultPaymentTerms),
         invoiceTitle: b?.invoiceTitle ?? "Invoice",
         invoiceNotes: b?.invoiceNotes ?? "",
         invoiceFooter: b?.invoiceFooter ?? "",

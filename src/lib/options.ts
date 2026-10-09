@@ -16,7 +16,7 @@ export async function accountOptions(
 
 export async function taxOptions(organizationId: string): Promise<TaxOption[]> {
   const taxes = await db.tax.findMany({ where: { organizationId, isArchived: false }, orderBy: { name: "asc" } });
-  return taxes.map((t) => ({ id: t.id, label: `${t.name} (${Number(t.rate)}%)`, rate: Number(t.rate) }));
+  return taxes.map((t) => ({ id: t.id, label: `${t.abbreviation} (${Number(t.rate)}%)`, rate: Number(t.rate) }));
 }
 
 export async function contactOptions(organizationId: string, role: "CUSTOMER" | "VENDOR"): Promise<Option[]> {

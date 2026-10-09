@@ -6,7 +6,11 @@ export interface NewOrganization {
   currency: string;
   country?: string | null;
   taxName?: string | null;
+  taxAbbreviation?: string | null;
   taxRate?: number | null;
+  fiscalYearEndMonth?: number;
+  fiscalYearEndDay?: number;
+  owner: { name: string | null; email: string };
   data?: Partial<{
     legalName: string | null;
     email: string | null;
@@ -21,7 +25,16 @@ export interface NewOrganization {
 export async function createOrganization(input: NewOrganization) {
   return db.$transaction(async (tx) => {
     const org = await tx.organization.create({
-      data: { name: input.name, currency: input.currency, country: input.country, ...input.data, branding: { create: {} } },
+      data: {
+        name: input.name,
+        currency: input.currency,
+        country: input.country,
+        fiscalYearEndMonth: input.fiscalYearEndMonth,
+        fiscalYearEndDay: input.fiscalYearEndDay,
+        ...input.data,
+        branding: { create: {} },
+        users: { create: { name: input.owner.name, email: input.owner.email.toLowerCase(), role: "OWNER", canSendInvoices: true, status: "ACTIVE" } },
+      },
     });
 
     await tx.account.createMany({
@@ -47,7 +60,15 @@ export async function createOrganization(input: NewOrganization) {
 
     if (input.taxName && input.taxRate) {
       await tx.tax.create({
-        data: { organizationId: org.id, name: input.taxName, rate: input.taxRate, accountId: byCode.get("2100")! },
+        data: {
+          organizationId: org.id,
+          name: input.taxName,
+          abbreviation: input.taxAbbreviation || input.taxName,
+          rate: input.taxRate,
+          taxNumber: input.data?.taxNumber,
+          showTaxNumber: !!input.data?.taxNumber,
+          accountId: byCode.get("2100")!,
+        },
       });
     }
     return org;

@@ -20,6 +20,8 @@ export interface DocLine {
   amountCents: number;
   taxCents: number;
   taxAccountId?: string | null;
+  /** false = tax paid on a purchase cannot be claimed back, so it is part of the cost. */
+  taxRecoverable?: boolean;
 }
 
 interface SettledDoc {
@@ -58,7 +60,8 @@ export function postSale(sale: SettledDoc, map: AccountMap): Posting | null {
  * Expense (purchases and expenses share one flow)
  *   PAID_NOW:  Dr Expense category (per line)  /  Dr Tax  /  Cr Bank or card
  *   ON_TERMS:  Dr Expense category (per line)  /  Dr Tax  /  Cr Accounts payable
- * Tax paid on purchases is debited to the tax account (recoverable input tax).
+ * Recoverable tax is debited to the tax account (input tax you claim back);
+ * non-recoverable tax is added to the expense category as part of the cost.
  */
 export function postExpense(expense: SettledDoc, map: AccountMap): Posting | null {
   if (expense.status === "DRAFT" || expense.status === "VOID") return null;
@@ -69,7 +72,10 @@ export function postExpense(expense: SettledDoc, map: AccountMap): Posting | nul
   const lines: PostingLine[] = [];
   for (const l of expense.lines) {
     lines.push({ accountId: l.accountId, debitCents: l.amountCents, creditCents: 0 });
-    if (l.taxCents) lines.push({ accountId: l.taxAccountId ?? map.SALES_TAX, debitCents: l.taxCents, creditCents: 0 });
+    if (l.taxCents) {
+      const taxAccount = l.taxRecoverable === false ? l.accountId : l.taxAccountId ?? map.SALES_TAX;
+      lines.push({ accountId: taxAccount, debitCents: l.taxCents, creditCents: 0 });
+    }
   }
   lines.push({ accountId: creditAccount, debitCents: 0, creditCents: total });
   return finalize(memo("Expense", expense), lines);

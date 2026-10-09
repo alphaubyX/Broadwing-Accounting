@@ -6,6 +6,7 @@ import { AttachmentsPanel } from "@/components/AttachmentsPanel";
 import { DocumentView } from "@/components/DocumentView";
 import { JournalPanel } from "@/components/JournalPanel";
 import { PageHeader } from "@/components/PageHeader";
+import { ScaledPreview } from "@/components/ScaledPreview";
 import { PaymentForm } from "@/components/PaymentForm";
 import { PaymentsList } from "@/components/PaymentsList";
 import { StatusBadge, displayStatus } from "@/components/StatusBadge";
@@ -25,7 +26,7 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
     where: { id, organizationId: org.id },
     include: {
       contact: true,
-      lines: { orderBy: { position: "asc" } },
+      lines: { include: { tax: true }, orderBy: { position: "asc" } },
       payments: { include: { account: true }, orderBy: { date: "asc" } },
       attachments: { orderBy: { createdAt: "asc" } },
       paidIntoAccount: true,
@@ -76,8 +77,10 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="min-w-0 overflow-x-auto rounded-xl border border-slate-200">
-          <DocumentView org={toDocumentOrg(org)} doc={saleDocument(org, sale)} style={brandingStyle(org)} />
+        <div className="min-w-0 overflow-hidden rounded-xl border border-slate-200">
+          <ScaledPreview>
+            <DocumentView org={toDocumentOrg(org)} doc={saleDocument(org, sale)} style={brandingStyle(org)} />
+          </ScaledPreview>
         </div>
 
         <div className="space-y-6">

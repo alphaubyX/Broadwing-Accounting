@@ -11,11 +11,14 @@ export function SaveForm({
   children,
   submitLabel = "Save",
   className = "card space-y-5 p-6",
+  secondary,
 }: {
   action: (s: ActionState, fd: FormData) => Promise<ActionState>;
   children: React.ReactNode;
   submitLabel?: string;
   className?: string;
+  /** Extra controls shown before the submit button, e.g. a Cancel link. */
+  secondary?: React.ReactNode;
 }) {
   const [state, formAction] = useActionState(action, {});
   return (
@@ -24,6 +27,7 @@ export function SaveForm({
       {children}
       <div className="flex items-center justify-end gap-3">
         {state.ok && <span className="text-sm text-emerald-600">Saved ✓</span>}
+        {secondary}
         <SubmitButton>{submitLabel}</SubmitButton>
       </div>
     </form>

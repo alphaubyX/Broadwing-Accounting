@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge, displayStatus } from "@/components/StatusBadge";
 import { db } from "@/lib/db";
 import { formatDate, parseISODate, today } from "@/lib/dates";
+import { fiscalYear } from "@/lib/fiscal";
 import { formatAmount, formatMoney, toCents } from "@/lib/money";
 import { requireOrganization } from "@/lib/org";
 import { accountBalances, profitAndLoss } from "@/lib/accounting/reports";
@@ -14,7 +15,7 @@ export default async function Dashboard() {
   const org = await requireOrganization();
   const now = today();
   const monthStart = parseISODate(`${now.slice(0, 7)}-01`);
-  const yearStart = parseISODate(`${now.slice(0, 4)}-01-01`);
+  const yearStart = parseISODate(fiscalYear(now, org.fiscalYearEndMonth, org.fiscalYearEndDay).from);
   const end = parseISODate(now);
 
   const [balances, month, year, openSales, openExpenses, recentSales, recentExpenses] = await Promise.all([
@@ -60,7 +61,7 @@ export default async function Dashboard() {
         <Stat icon={<Landmark className="h-5 w-5" />} label="Cash & bank" value={formatMoney(cash.reduce((s, b) => s + b.balanceCents, 0), c)} />
         <Stat icon={<ArrowDownRight className="h-5 w-5 text-emerald-600" />} label="Owed to you" value={formatMoney(outstanding(openSales), c)} href="/sales?status=open" />
         <Stat icon={<ArrowUpRight className="h-5 w-5 text-amber-600" />} label="You owe" value={formatMoney(outstanding(openExpenses), c)} href="/expenses?status=open" />
-        <Stat label="Profit this year" value={formatMoney(year.netProfit, c)} href="/reports" />
+        <Stat label="Profit this fiscal year" value={formatMoney(year.netProfit, c)} href="/reports" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">

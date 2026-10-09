@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { PageHeader } from "@/components/PageHeader";
 import { db } from "@/lib/db";
 import { formatDate, parseISODate, today } from "@/lib/dates";
+import { fiscalYear } from "@/lib/fiscal";
 import { formatAmount, formatMoney } from "@/lib/money";
 import { requireOrganization } from "@/lib/org";
 import { balanceSheet, profitAndLoss, trialBalance, type AccountBalance } from "@/lib/accounting/reports";
@@ -16,12 +17,6 @@ const TABS = [
   { value: "journal", label: "Journal" },
 ];
 
-function fiscalYearStart(todayIso: string, startMonth: number): string {
-  const [y, m] = todayIso.split("-").map(Number);
-  const year = m >= startMonth ? y : y - 1;
-  return `${year}-${String(startMonth).padStart(2, "0")}-01`;
-}
-
 export default async function ReportsPage({
   searchParams,
 }: {
@@ -31,7 +26,7 @@ export default async function ReportsPage({
   const tab = TABS.some((t) => t.value === sp.tab) ? sp.tab! : "pnl";
   const org = await requireOrganization();
   const to = sp.to || today();
-  const from = sp.from || fiscalYearStart(to, org.fiscalYearStartMonth);
+  const from = sp.from || fiscalYear(to, org.fiscalYearEndMonth, org.fiscalYearEndDay).from;
   const c = org.currency;
   const usesRange = tab === "pnl" || tab === "journal";
 
