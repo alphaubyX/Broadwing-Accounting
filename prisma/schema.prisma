@@ -1,0 +1,434 @@
+// Broadwing Accounting data model.
+//
+// Every business record is scoped by organizationId so the app can later serve
+// several organizations from the central Broadwing platform. Users and auth are
+// intentionally absent: they will come from Broadwing's central identity service.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Organization & settings ─────────────────────────────────────────────────
+
+model Organization {
+  id                   String   @id @default(cuid())
+  name                 String
+  legalName            String?
+  email                String?
+  phone                String?
+  website              String?
+  addressLine1         String?
+  addressLine2         String?
+  city                 String?
+  state                String?
+  postalCode           String?
+  country              String?
+  taxNumber            String?
+  taxNumberLabel       String   @default("Tax number")
+  currency             String   @default("USD")
+  fiscalYearStartMonth Int      @default(1) // 1 = January
+  defaultPaymentTerms  Int      @default(30) // days
+  logoPath             String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  branding        Branding?
+  accounts        Account[]
+  accountMappings AccountMapping[]
+  taxes           Tax[]
+  contacts        Contact[]
+  sales           Sale[]
+  expenses        Expense[]
+  purchaseOrders  PurchaseOrder[]
+  payments        Payment[]
+  journalEntries  JournalEntry[]
+  attachments     Attachment[]
+  sequences       Sequence[]
+}
+
+/// Look & layout of printed documents (invoices, purchase orders).
+model Branding {
+  id              String       @id @default(cuid())
+  organizationId  String       @unique
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accentColor     String       @default("#2f6fed")
+  font            String       @default("sans") // sans | serif | mono
+  layout          String       @default("classic") // classic | modern | compact
+  logoPosition    String       @default("left") // left | center | right
+  addressPosition String       @default("right") // left | right
+  showTaxNumber   Boolean      @default(true)
+  invoiceTitle    String       @default("Invoice")
+  invoiceFooter   String?
+  invoiceNotes    String? // default notes / payment instructions
+  poTitle         String       @default("Purchase Order")
+  poFooter        String?
+  poNotes         String?
+  invoicePrefix   String       @default("INV-")
+  expensePrefix   String       @default("EXP-")
+  poPrefix        String       @default("PO-")
+}
+
+/// Per-organization running counters used to give every transaction a unique number.
+model Sequence {
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  key            String // INV | EXP | PO | PAY | JE
+  next           Int          @default(1)
+
+  @@id([organizationId, key])
+}
+
+// ─── Chart of accounts ───────────────────────────────────────────────────────
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum AccountSubtype {
+  CASH_AND_BANK
+  ACCOUNTS_RECEIVABLE
+  CURRENT_ASSET
+  FIXED_ASSET
+  ACCOUNTS_PAYABLE
+  TAX_PAYABLE
+  CURRENT_LIABILITY
+  LONG_TERM_LIABILITY
+  OWNER_EQUITY
+  RETAINED_EARNINGS
+  SALES
+  OTHER_INCOME
+  COST_OF_SALES
+  OPERATING_EXPENSE
+  OTHER_EXPENSE
+}
+
+model Account {
+  id             String         @id @default(cuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  code           String
+  name           String
+  type           AccountType
+  subtype        AccountSubtype
+  description    String?
+  isSystem       Boolean        @default(false) // created by setup; cannot be deleted
+  isArchived     Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+
+  mappings     AccountMapping[]
+  journalLines JournalLine[]
+  saleLines    SaleLine[]
+  expenseLines ExpenseLine[]
+  taxes        Tax[]
+  payments     Payment[]
+  paidSales    Sale[]           @relation("SalePaidInto")
+  paidExpenses Expense[]        @relation("ExpensePaidFrom")
+
+  @@unique([organizationId, code])
+}
+
+/// Which account the app posts to for each automatic debit/credit
+/// (e.g. ACCOUNTS_RECEIVABLE -> "1100 Accounts Receivable").
+model AccountMapping {
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  key            String // see src/lib/accounting/mapping.ts
+  accountId      String
+  account        Account      @relation(fields: [accountId], references: [id])
+
+  @@id([organizationId, key])
+}
+
+model Tax {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  rate           Decimal      @db.Decimal(7, 3) // percent, e.g. 15.000
+  accountId      String
+  account        Account      @relation(fields: [accountId], references: [id])
+  isArchived     Boolean      @default(false)
+
+  saleLines    SaleLine[]
+  expenseLines ExpenseLine[]
+  poLines      PurchaseOrderLine[]
+}
+
+// ─── Contacts ────────────────────────────────────────────────────────────────
+
+enum ContactType {
+  CUSTOMER
+  VENDOR
+  BOTH
+}
+
+model Contact {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  type           ContactType  @default(CUSTOMER)
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  taxNumber      String?
+  notes          String?
+  isArchived     Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  sales          Sale[]
+  expenses       Expense[]
+  purchaseOrders PurchaseOrder[]
+}
+
+// ─── Transactions ────────────────────────────────────────────────────────────
+
+/// How a sale or expense is settled.
+/// PAID_NOW: money moved on the transaction date (cash sale / cash expense).
+/// ON_TERMS: creates a receivable/payable that is settled later with payments.
+enum SettlementMode {
+  PAID_NOW
+  ON_TERMS
+}
+
+enum DocumentStatus {
+  DRAFT // sales only; not posted to the ledger
+  UNPAID
+  PARTIAL
+  PAID
+  VOID
+}
+
+model Sale {
+  id                String         @id @default(cuid())
+  organizationId    String
+  organization      Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number            String
+  contactId         String?
+  contact           Contact?       @relation(fields: [contactId], references: [id])
+  date              DateTime       @db.Date
+  dueDate           DateTime?      @db.Date
+  reference         String?
+  notes             String?
+  settlement        SettlementMode @default(ON_TERMS)
+  paidIntoAccountId String?
+  paidIntoAccount   Account?       @relation("SalePaidInto", fields: [paidIntoAccountId], references: [id])
+  status            DocumentStatus @default(DRAFT)
+  subtotal          Decimal        @default(0) @db.Decimal(14, 2)
+  taxTotal          Decimal        @default(0) @db.Decimal(14, 2)
+  total             Decimal        @default(0) @db.Decimal(14, 2)
+  amountPaid        Decimal        @default(0) @db.Decimal(14, 2)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  lines       SaleLine[]
+  payments    Payment[]
+  attachments Attachment[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, date])
+}
+
+model SaleLine {
+  id          String  @id @default(cuid())
+  saleId      String
+  sale        Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  position    Int
+  description String
+  quantity    Decimal @db.Decimal(14, 4)
+  unitPrice   Decimal @db.Decimal(14, 4)
+  amount      Decimal @db.Decimal(14, 2) // quantity * unitPrice, before tax
+  taxAmount   Decimal @default(0) @db.Decimal(14, 2)
+  accountId   String
+  account     Account @relation(fields: [accountId], references: [id])
+  taxId       String?
+  tax         Tax?    @relation(fields: [taxId], references: [id])
+}
+
+/// One screen for everything you buy: cash expenses and bills on payment terms.
+model Expense {
+  id                String         @id @default(cuid())
+  organizationId    String
+  organization      Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number            String
+  contactId         String?
+  contact           Contact?       @relation(fields: [contactId], references: [id])
+  payeeName         String? // free-text payee when no contact is selected
+  date              DateTime       @db.Date
+  dueDate           DateTime?      @db.Date
+  description       String
+  reference         String? // vendor's bill / receipt number
+  settlement        SettlementMode @default(PAID_NOW)
+  paidFromAccountId String?
+  paidFromAccount   Account?       @relation("ExpensePaidFrom", fields: [paidFromAccountId], references: [id])
+  status            DocumentStatus @default(UNPAID)
+  subtotal          Decimal        @default(0) @db.Decimal(14, 2)
+  taxTotal          Decimal        @default(0) @db.Decimal(14, 2)
+  total             Decimal        @default(0) @db.Decimal(14, 2)
+  amountPaid        Decimal        @default(0) @db.Decimal(14, 2)
+  purchaseOrderId   String?        @unique
+  purchaseOrder     PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  lines       ExpenseLine[]
+  payments    Payment[]
+  attachments Attachment[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, date])
+}
+
+model ExpenseLine {
+  id          String  @id @default(cuid())
+  expenseId   String
+  expense     Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  position    Int
+  description String
+  amount      Decimal @db.Decimal(14, 2) // before tax
+  taxAmount   Decimal @default(0) @db.Decimal(14, 2)
+  accountId   String
+  account     Account @relation(fields: [accountId], references: [id])
+  taxId       String?
+  tax         Tax?    @relation(fields: [taxId], references: [id])
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  BILLED // converted into an expense
+  CANCELLED
+}
+
+/// A purchase order is a commitment, not an accounting transaction:
+/// it does not post to the ledger until converted into an expense.
+model PurchaseOrder {
+  id             String              @id @default(cuid())
+  organizationId String
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number         String
+  contactId      String?
+  contact        Contact?            @relation(fields: [contactId], references: [id])
+  date           DateTime            @db.Date
+  expectedDate   DateTime?           @db.Date
+  reference      String?
+  notes          String?
+  status         PurchaseOrderStatus @default(DRAFT)
+  subtotal       Decimal             @default(0) @db.Decimal(14, 2)
+  taxTotal       Decimal             @default(0) @db.Decimal(14, 2)
+  total          Decimal             @default(0) @db.Decimal(14, 2)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  lines       PurchaseOrderLine[]
+  attachments Attachment[]
+  expense     Expense?
+
+  @@unique([organizationId, number])
+}
+
+model PurchaseOrderLine {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  position        Int
+  description     String
+  quantity        Decimal       @db.Decimal(14, 4)
+  unitPrice       Decimal       @db.Decimal(14, 4)
+  amount          Decimal       @db.Decimal(14, 2)
+  taxAmount       Decimal       @default(0) @db.Decimal(14, 2)
+  accountId       String? // expense account to use when converted
+  taxId           String?
+  tax             Tax?          @relation(fields: [taxId], references: [id])
+}
+
+/// Money received against a sale or paid against an expense on terms.
+model Payment {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number         String
+  date           DateTime     @db.Date
+  amount         Decimal      @db.Decimal(14, 2)
+  accountId      String // bank / cash account
+  account        Account      @relation(fields: [accountId], references: [id])
+  method         String? // cash, bank transfer, card...
+  reference      String?
+  saleId         String?
+  sale           Sale?        @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  expenseId      String?
+  expense        Expense?     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, number])
+}
+
+// ─── General ledger ──────────────────────────────────────────────────────────
+
+enum JournalSource {
+  SALE
+  EXPENSE
+  PAYMENT
+  MANUAL
+}
+
+/// Double-entry journal. Entries are generated automatically from sales,
+/// expenses and payments (see src/lib/accounting/posting.ts) and are
+/// regenerated whenever the source document changes.
+model JournalEntry {
+  id             String        @id @default(cuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  date           DateTime      @db.Date
+  memo           String
+  sourceType     JournalSource
+  sourceId       String? // id of the Sale / Expense / Payment
+  sourceNumber   String? // human number of the source, e.g. INV-0003
+  createdAt      DateTime      @default(now())
+
+  lines JournalLine[]
+
+  @@index([organizationId, date])
+  @@index([sourceType, sourceId])
+}
+
+model JournalLine {
+  id             String       @id @default(cuid())
+  journalEntryId String
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  accountId      String
+  account        Account      @relation(fields: [accountId], references: [id])
+  description    String?
+  debit          Decimal      @default(0) @db.Decimal(14, 2)
+  credit         Decimal      @default(0) @db.Decimal(14, 2)
+
+  @@index([accountId])
+}
+
+// ─── Files ───────────────────────────────────────────────────────────────────
+
+model Attachment {
+  id              String         @id @default(cuid())
+  organizationId  String
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fileName        String
+  mimeType        String
+  size            Int
+  storagePath     String
+  saleId          String?
+  sale            Sale?          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  expenseId       String?
+  expense         Expense?       @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  createdAt       DateTime       @default(now())
+}
