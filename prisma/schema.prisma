@@ -1,4 +1,4 @@
-// Broadwing Accounting data model.
+// Broadwing Accounting data model (MySQL / MariaDB).
 //
 // Every business record is scoped by organizationId so the app can later serve
 // several organizations from the central Broadwing platform. Users and auth are
@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -34,7 +34,7 @@ model Organization {
   fiscalYearEndMonth  Int      @default(12) // 1 = January
   fiscalYearEndDay    Int      @default(31)
   defaultPaymentTerms Int      @default(30) // days
-  logoPath            String?
+  logoPath            String?  @db.VarChar(500)
   plan                String   @default("STARTER") // subscription plan, managed centrally by Broadwing later
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -97,11 +97,11 @@ model Branding {
   addressPosition String       @default("right") // left | right
   showTaxNumber   Boolean      @default(true)
   invoiceTitle    String       @default("Invoice")
-  invoiceFooter   String?
-  invoiceNotes    String? // default notes / payment instructions
+  invoiceFooter   String?      @db.Text
+  invoiceNotes    String?      @db.Text // default notes / payment instructions
   poTitle         String       @default("Purchase Order")
-  poFooter        String?
-  poNotes         String?
+  poFooter        String?      @db.Text
+  poNotes         String?      @db.Text
   invoicePrefix   String       @default("INV-")
   expensePrefix   String       @default("EXP-")
   poPrefix        String       @default("PO-")
@@ -153,7 +153,7 @@ model Account {
   name           String
   type           AccountType
   subtype        AccountSubtype
-  description    String?
+  description    String?        @db.Text
   isSystem       Boolean        @default(false) // created by setup; cannot be deleted
   isArchived     Boolean        @default(false)
   createdAt      DateTime       @default(now())
@@ -188,7 +188,7 @@ model Tax {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
   abbreviation   String
-  description    String?
+  description    String?      @db.Text
   taxNumber      String? // your registration number for this tax
   showTaxNumber  Boolean      @default(false) // print the number next to the tax on invoices
   isRecoverable  Boolean      @default(true) // tax paid on purchases can be claimed back
@@ -218,9 +218,9 @@ model Contact {
   name           String
   email          String?
   phone          String?
-  address        String?
+  address        String?      @db.Text
   taxNumber      String?
-  notes          String?
+  notes          String?      @db.Text
   isArchived     Boolean      @default(false)
   createdAt      DateTime     @default(now())
 
@@ -257,7 +257,7 @@ model Sale {
   date              DateTime       @db.Date
   dueDate           DateTime?      @db.Date
   reference         String?
-  notes             String?
+  notes             String?        @db.Text
   settlement        SettlementMode @default(ON_TERMS)
   paidIntoAccountId String?
   paidIntoAccount   Account?       @relation("SalePaidInto", fields: [paidIntoAccountId], references: [id])
@@ -282,7 +282,7 @@ model SaleLine {
   saleId      String
   sale        Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
   position    Int
-  description String
+  description String  @db.VarChar(500)
   quantity    Decimal @db.Decimal(14, 4)
   unitPrice   Decimal @db.Decimal(14, 4)
   amount      Decimal @db.Decimal(14, 2) // quantity * unitPrice, before tax
@@ -304,7 +304,7 @@ model Expense {
   payeeName         String? // free-text payee when no contact is selected
   date              DateTime       @db.Date
   dueDate           DateTime?      @db.Date
-  description       String
+  description       String         @db.VarChar(500)
   reference         String? // vendor's bill / receipt number
   settlement        SettlementMode @default(PAID_NOW)
   paidFromAccountId String?
@@ -332,7 +332,7 @@ model ExpenseLine {
   expenseId   String
   expense     Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   position    Int
-  description String
+  description String  @db.VarChar(500)
   amount      Decimal @db.Decimal(14, 2) // before tax
   taxAmount   Decimal @default(0) @db.Decimal(14, 2)
   accountId   String
@@ -360,7 +360,7 @@ model PurchaseOrder {
   date           DateTime            @db.Date
   expectedDate   DateTime?           @db.Date
   reference      String?
-  notes          String?
+  notes          String?             @db.Text
   status         PurchaseOrderStatus @default(DRAFT)
   subtotal       Decimal             @default(0) @db.Decimal(14, 2)
   taxTotal       Decimal             @default(0) @db.Decimal(14, 2)
@@ -380,7 +380,7 @@ model PurchaseOrderLine {
   purchaseOrderId String
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   position        Int
-  description     String
+  description     String        @db.VarChar(500)
   quantity        Decimal       @db.Decimal(14, 4)
   unitPrice       Decimal       @db.Decimal(14, 4)
   amount          Decimal       @db.Decimal(14, 2)
@@ -428,7 +428,7 @@ model JournalEntry {
   organizationId String
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   date           DateTime      @db.Date
-  memo           String
+  memo           String        @db.VarChar(500)
   sourceType     JournalSource
   sourceId       String? // id of the Sale / Expense / Payment
   sourceNumber   String? // human number of the source, e.g. INV-0003
@@ -446,7 +446,7 @@ model JournalLine {
   journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
   accountId      String
   account        Account      @relation(fields: [accountId], references: [id])
-  description    String?
+  description    String?      @db.VarChar(500)
   debit          Decimal      @default(0) @db.Decimal(14, 2)
   credit         Decimal      @default(0) @db.Decimal(14, 2)
 
@@ -459,10 +459,10 @@ model Attachment {
   id              String         @id @default(cuid())
   organizationId  String
   organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  fileName        String
+  fileName        String         @db.VarChar(500)
   mimeType        String
   size            Int
-  storagePath     String
+  storagePath     String         @db.VarChar(500)
   saleId          String?
   sale            Sale?          @relation(fields: [saleId], references: [id], onDelete: Cascade)
   expenseId       String?

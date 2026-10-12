@@ -12,11 +12,12 @@ import { nextNumber } from "@/lib/sequence";
 import { storeAttachments } from "@/lib/attachments";
 import { deleteJournal, repostExpense, syncPaymentStatus } from "@/lib/accounting/ledger";
 
-/** "Paid to" is free text; link it to a vendor when the name matches one. */
+/** "Paid to" is free text; link it to a vendor when the name matches one
+ * (MySQL's default utf8mb4 collation compares case-insensitively). */
 async function resolvePayee(tx: Tx, organizationId: string, name: string | null) {
   if (!name) return { contactId: null, payeeName: null };
   const contact = await tx.contact.findFirst({
-    where: { organizationId, isArchived: false, name: { equals: name, mode: "insensitive" } },
+    where: { organizationId, isArchived: false, name },
   });
   return contact ? { contactId: contact.id, payeeName: null } : { contactId: null, payeeName: name };
 }

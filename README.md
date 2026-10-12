@@ -32,7 +32,7 @@ Logins are **not included yet**. Users and their roles are recorded under Settin
 ## Tech stack
 
 - **Next.js 15** (App Router, React Server Components, Server Actions) with TypeScript
-- **PostgreSQL** with the **Prisma** ORM
+- **MySQL / MariaDB** with the **Prisma** ORM (works with the MySQL service on cPanel hosting such as FastComet)
 - **Tailwind CSS**
 - **Vitest** for unit tests of the accounting rules
 
@@ -43,7 +43,7 @@ Logins are **not included yet**. Users and their roles are recorded under Settin
 npm install
 
 # 2. Configure the database connection
-cp .env.example .env        # then edit DATABASE_URL
+cp .env.example .env        # then set DATABASE_URL=mysql://user:password@host:3306/dbname
 
 # 3. Create the database tables
 npx prisma migrate deploy   # or `npm run db:migrate` during development
