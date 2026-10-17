@@ -56,7 +56,7 @@ The first time you open the app, it takes you to the setup wizard.
 
 ### Going live on cPanel hosting (FastComet)
 
-`npm run package:cpanel` builds `dist/broadwing-accounting.zip`, a self-contained package for cPanel's **Setup Node.js App**. It creates its own database tables on start and is protected by a password (`APP_PASSWORD`). The step-by-step guide is in [docs/DEPLOY-FASTCOMET.md](docs/DEPLOY-FASTCOMET.md).
+`npm run package:cpanel` builds `dist/broadwing-accounting.tar.gz` (and a `.zip`), a self-contained package for cPanel's **Setup Node.js App**. It creates its own database tables on start and is protected by a password (`APP_PASSWORD`). The step-by-step guide is in [docs/DEPLOY-FASTCOMET.md](docs/DEPLOY-FASTCOMET.md).
 
 ### Useful scripts
 
@@ -68,7 +68,7 @@ The first time you open the app, it takes you to the setup wizard.
 | `npm run typecheck` | TypeScript check |
 | `npm run db:migrate` | Create or apply migrations in development |
 | `npm run db:studio` | Browse the database |
-| `npm run package:cpanel` | Build the upload-ready ZIP for cPanel / FastComet |
+| `npm run package:cpanel` | Build the upload-ready `.tar.gz` / `.zip` for cPanel / FastComet |
 
 ## Project layout
 

@@ -2,12 +2,12 @@
 
 This guide puts the app live on a subdomain such as `accounts.yourdomain.com`,
 using cPanel's **Setup Node.js App** and your existing **MySQL** service.
-Nothing has to be built or installed on the server: you upload a ready-made ZIP.
+Nothing has to be built or installed on the server: you upload a ready-made package.
 
 You will need:
 
-- `broadwing-accounting.zip`: the ready-to-upload package. Create it with
-  `npm run package:cpanel` (it appears in `dist/`), or use the one you were sent.
+- `broadwing-accounting.tar.gz` (or `.zip`): the ready-to-upload package. Create it with
+  `npm run package:cpanel` (both appear in `dist/`), or use the one you were sent.
 - About 20 minutes and access to cPanel.
 
 ---
@@ -54,10 +54,10 @@ Replace `cpuser_` with your real prefix and `PASSWORD` with the password.
 cPanel → **Files → File Manager**
 
 1. Open your **home folder** (`/home/cpuser`). This is **not** `public_html`.
-2. **Upload** `broadwing-accounting.zip`.
-3. Right-click the ZIP → **Extract** → extract into `/home/cpuser`.
+2. **Upload** `broadwing-accounting.tar.gz` (or the `.zip`).
+3. Right-click the file → **Extract** → extract into `/home/cpuser`.
 4. You now have `/home/cpuser/broadwing-accounting/` containing `app.js`, `package.json` and an `app/` folder.
-5. Delete the ZIP file.
+5. Delete the uploaded `.tar.gz` / `.zip` file.
 
 ## Step 5: Create the Node.js application (5 minutes)
 
@@ -104,12 +104,12 @@ The password is sent with every request, so **always use https://**.
 
 1. **Setup Node.js App** → your app → **Stop App**.
 2. File Manager → `/home/cpuser/broadwing-accounting` → delete the **`app`** folder only.
-3. Upload the new ZIP to `/home/cpuser` and **Extract** it (allow overwriting `app.js` and `package.json`).
+3. Upload the new `.tar.gz` (or `.zip`) to `/home/cpuser` and **Extract** it (allow overwriting `app.js` and `package.json`).
 4. **Start App** (or **Restart**). Any database updates are applied automatically on start.
 
 Your data is safe during updates. It lives in the MySQL database and in
 `/home/cpuser/broadwing-accounting/uploads` (logos and receipts), and neither is
-part of the ZIP.
+part of the package.
 
 ## Backups
 

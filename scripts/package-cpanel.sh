@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds a ready-to-upload ZIP for cPanel Node.js hosting (e.g. FastComet).
-# Output: dist/broadwing-accounting.zip
+# Output: dist/broadwing-accounting.zip and dist/broadwing-accounting.tar.gz
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -33,4 +33,6 @@ with zipfile.ZipFile('broadwing-accounting.zip', 'w', zipfile.ZIP_DEFLATED) as z
             p = os.path.join(root, f)
             z.write(p, p)
 ")
+(cd dist && tar -czf broadwing-accounting.tar.gz broadwing-accounting)
 echo "Created dist/broadwing-accounting.zip ($(du -h dist/broadwing-accounting.zip | cut -f1))"
+echo "Created dist/broadwing-accounting.tar.gz ($(du -h dist/broadwing-accounting.tar.gz | cut -f1))"
