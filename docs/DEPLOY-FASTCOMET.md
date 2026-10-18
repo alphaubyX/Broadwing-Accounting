@@ -139,7 +139,7 @@ so you can tell new entries from old ones. Common messages:
 | --- | --- |
 | `DATABASE_URL is not set` / `DATABASE_URL MISSING` | Add the variable in Setup Node.js App and restart. If that doesn't help, use the settings file `/home/cpuser/broadwing-accounting.env` (see Step 5). |
 | `Access denied for user` / `/api/health` shows `unreachable` | Check the user, password and prefix in `DATABASE_URL`, and that the user has ALL PRIVILEGES on the database. Encode symbols in the password (Step 3). |
-| `Prisma … could not locate the Query Engine` / `libssl` errors | Send the log line to support. The server needs another engine build. |
+| `no bundled database engine could be loaded` | The log lists why each engine failed (usually a missing `libssl`). Send those lines to your developer; the server needs another engine build. |
 | `SyntaxError` or `Unexpected token` at start | The Node.js version is too old. Choose 20 or 22 and restart. |
 | `pthread_create: Resource temporarily unavailable` | The account's thread/process limit was hit. Use the latest `app.js` (it keeps thread pools small), then in **Setup Node.js App** click **Stop App**, wait 30 seconds and **Start App** so old processes are cleared. If it persists, ask FastComet support to raise the account's process (NPROC) limit. |
 | *Incomplete response received from application* / 503 | Usually a start-up error. Check `stderr.log`, then **Restart**. |

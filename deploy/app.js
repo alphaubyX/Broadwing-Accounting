@@ -55,6 +55,31 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
+// Pick the Prisma query engine by actually loading it. Prisma's own detection
+// reads system files that CloudLinux CageFS can hide, so it may guess the wrong
+// Linux build; trying each bundled engine finds one that works on this server.
+if (!process.env.PRISMA_QUERY_ENGINE_LIBRARY) {
+  const engineDir = path.join(__dirname, "app", "node_modules", ".prisma", "client");
+  const order = ["rhel-openssl-3.0.x", "rhel-openssl-1.1.x", "rhel-openssl-1.0.x", "debian-openssl-3.0.x", "debian-openssl-1.1.x"];
+  const tried = [];
+  for (const target of order) {
+    const file = path.join(engineDir, `libquery_engine-${target}.so.node`);
+    if (!fs.existsSync(file)) continue;
+    try {
+      require(file);
+      process.env.PRISMA_QUERY_ENGINE_LIBRARY = file;
+      log(`database engine: ${target}`);
+      break;
+    } catch (e) {
+      tried.push(`${target}: ${String((e && e.message) || e).split("\n")[0]}`);
+    }
+  }
+  if (!process.env.PRISMA_QUERY_ENGINE_LIBRARY) {
+    log("no bundled database engine could be loaded on this server:\n  " + tried.join("\n  "));
+    process.exit(1);
+  }
+}
+
 // Prisma opens (CPU count × 2 + 1) MySQL connections by default; shared MySQL
 // allows only a few per user, so cap the pool unless the URL already sets it.
 if (!/[?&]connection_limit=/.test(process.env.DATABASE_URL)) {
