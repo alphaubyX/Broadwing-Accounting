@@ -128,6 +128,7 @@ The app writes its log to **`/home/cpuser/broadwing-accounting/stderr.log`**
 | `Access denied for user` / `/api/health` shows `unreachable` | Check the user, password and prefix in `DATABASE_URL`, and that the user has ALL PRIVILEGES on the database. Encode symbols in the password (Step 3). |
 | `Prisma … could not locate the Query Engine` / `libssl` errors | Send the log line to support. The server needs another engine build. |
 | `SyntaxError` or `Unexpected token` at start | The Node.js version is too old. Choose 20 or 22 and restart. |
+| `pthread_create: Resource temporarily unavailable` | The account's thread/process limit was hit. Use the latest `app.js` (it keeps thread pools small), then in **Setup Node.js App** click **Stop App**, wait 30 seconds and **Start App** so old processes are cleared. If it persists, ask FastComet support to raise the account's process (NPROC) limit. |
 | *Incomplete response received from application* / 503 | Usually a start-up error. Check `stderr.log`, then **Restart**. |
 | Sign-in prompt keeps reappearing | Check `APP_USERNAME` / `APP_PASSWORD` for typos, and restart after changing them. |
 | Site shows a cPanel default page | The Application URL must be the subdomain, with the Application root `broadwing-accounting`. |
