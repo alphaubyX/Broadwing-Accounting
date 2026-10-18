@@ -81,6 +81,17 @@ Under **Environment variables**, click **Add Variable** for each:
 
 Click **Create**, then **Restart**.
 
+> **If the app says `DATABASE_URL is not set` even though you added it:** some
+> LiteSpeed servers do not pass these variables to Node.js apps. Put the settings
+> in a file instead: create `/home/cpuser/broadwing-accounting.env` (in your
+> home folder, not in a website folder) with these lines, then restart:
+>
+> ```
+> DATABASE_URL=mysql://cpuser_bwapp:PASSWORD@localhost:3306/cpuser_broadwing
+> APP_PASSWORD=your-app-password
+> UPLOAD_DIR=/home/cpuser/broadwing-accounting-uploads
+> ```
+
 > **Do not** click "Run NPM Install". Everything the app needs is already in the `app/` folder.
 
 On first start the app creates its database tables automatically.
@@ -120,11 +131,13 @@ part of the package.
 ## Troubleshooting
 
 The app writes its log to **`/home/cpuser/broadwing-accounting/stderr.log`**
-(open it in File Manager). Common messages:
+(open it in File Manager). Each start writes a line such as
+`[broadwing 2026-10-18T21:05:48Z] starting: Node v24…, settings from …, DATABASE_URL set`,
+so you can tell new entries from old ones. Common messages:
 
 | What you see | Fix |
 | --- | --- |
-| `DATABASE_URL is not set` | Add the variable in Setup Node.js App and click **Restart**. |
+| `DATABASE_URL is not set` / `DATABASE_URL MISSING` | Add the variable in Setup Node.js App and restart. If that doesn't help, use the settings file `/home/cpuser/broadwing-accounting.env` (see Step 5). |
 | `Access denied for user` / `/api/health` shows `unreachable` | Check the user, password and prefix in `DATABASE_URL`, and that the user has ALL PRIVILEGES on the database. Encode symbols in the password (Step 3). |
 | `Prisma … could not locate the Query Engine` / `libssl` errors | Send the log line to support. The server needs another engine build. |
 | `SyntaxError` or `Unexpected token` at start | The Node.js version is too old. Choose 20 or 22 and restart. |

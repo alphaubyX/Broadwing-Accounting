@@ -20,6 +20,7 @@ cp -a prisma/migrations "$OUT/app/migrations"
 cp deploy/migrate.js "$OUT/app/migrate.js"
 cp deploy/app.js "$OUT/app.js"
 cp deploy/package.json "$OUT/package.json"
+cp deploy/broadwing-accounting.env.example "$OUT/broadwing-accounting.env.example"
 # Not needed at runtime: image optimisation (unused) and the TypeScript compiler.
 rm -rf "$OUT/app/node_modules/@img" "$OUT/app/node_modules/sharp" "$OUT/app/node_modules/typescript"
 # Never ship local secrets or uploads.
