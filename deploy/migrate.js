@@ -7,6 +7,24 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { PrismaClient } = require("@prisma/client");
+const { PrismaMariaDb } = require("@prisma/adapter-mariadb");
+
+/** Same parsing as src/lib/db-config.ts. */
+function poolConfig(url) {
+  const u = new URL(url);
+  const socket = u.searchParams.get("socket");
+  return {
+    host: u.hostname || "localhost",
+    port: Number(u.port || 3306),
+    user: decodeURIComponent(u.username),
+    password: decodeURIComponent(u.password),
+    database: decodeURIComponent(u.pathname.replace(/^\//, "")),
+    connectionLimit: 1,
+    connectTimeout: 10000,
+    allowPublicKeyRetrieval: true,
+    ...(socket ? { socketPath: socket } : {}),
+  };
+}
 
 const CREATE_TABLE = `CREATE TABLE IF NOT EXISTS \`_prisma_migrations\` (
   \`id\` VARCHAR(36) NOT NULL,
@@ -32,7 +50,7 @@ function statements(sql) {
 }
 
 module.exports = async function migrate(migrationsDir) {
-  const db = new PrismaClient();
+  const db = new PrismaClient({ adapter: new PrismaMariaDb(poolConfig(process.env.DATABASE_URL)) });
   try {
     await db.$executeRawUnsafe(CREATE_TABLE);
     const rows = await db.$queryRawUnsafe("SELECT migration_name, finished_at, rolled_back_at FROM _prisma_migrations");

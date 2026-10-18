@@ -6,7 +6,20 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const log = (...a) => console.error(`[broadwing ${new Date().toISOString()}]`, ...a);
+const log = (...a) => console.error(`[broadwing ${new Date().toISOString()} pid ${process.pid}]`, ...a);
+
+// Explain every way the process can end, so stderr.log always says why.
+process.on("uncaughtException", (e) => {
+  log("crashed:", (e && e.stack) || e);
+  process.exit(1);
+});
+process.on("unhandledRejection", (e) => log("unhandled error:", (e && e.stack) || e));
+for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
+  process.on(signal, () => {
+    log(`stopped by the server (${signal})`);
+    process.exit(0);
+  });
+}
 
 // Settings: cPanel environment variables, or a settings file. Some LiteSpeed
 // servers don't pass cPanel's variables to Node.js apps, so the file is the
@@ -29,19 +42,14 @@ if (configFile) {
 }
 
 process.env.NODE_ENV = process.env.NODE_ENV || "production";
-
-// Shared hosting (CloudLinux LVE) caps the threads and processes per account,
-// while thread pools default to the server's CPU count (often 32–64 cores),
-// which fails with "pthread_create: Resource temporarily unavailable".
-// Keep every pool small and fixed. Each can still be overridden.
-process.env.TOKIO_WORKER_THREADS = process.env.TOKIO_WORKER_THREADS || "1"; // Prisma query engine
-process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || "2"; // Node.js file/DNS pool
+// Shared hosting caps threads per account; keep Node's worker pool small.
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || "2";
 
 // Uploaded logos and receipts are kept outside ./app so updates never touch them.
 process.env.UPLOAD_DIR = path.resolve(__dirname, process.env.UPLOAD_DIR || "uploads");
 
 log(
-  `starting: Node ${process.version}, ${os.cpus().length} CPUs, settings from ` +
+  `starting: Node ${process.version}, settings from ` +
     (configFile ? configFile : "cPanel environment variables") +
     `, DATABASE_URL ${process.env.DATABASE_URL ? "set" : "MISSING"}, APP_PASSWORD ${process.env.APP_PASSWORD ? "set" : "not set"}`,
 );
@@ -55,43 +63,12 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-// Pick the Prisma query engine by actually loading it. Prisma's own detection
-// reads system files that CloudLinux CageFS can hide, so it may guess the wrong
-// Linux build; trying each bundled engine finds one that works on this server.
-if (!process.env.PRISMA_QUERY_ENGINE_LIBRARY) {
-  const engineDir = path.join(__dirname, "app", "node_modules", ".prisma", "client");
-  const order = ["rhel-openssl-3.0.x", "rhel-openssl-1.1.x", "rhel-openssl-1.0.x", "debian-openssl-3.0.x", "debian-openssl-1.1.x"];
-  const tried = [];
-  for (const target of order) {
-    const file = path.join(engineDir, `libquery_engine-${target}.so.node`);
-    if (!fs.existsSync(file)) continue;
-    try {
-      require(file);
-      process.env.PRISMA_QUERY_ENGINE_LIBRARY = file;
-      log(`database engine: ${target}`);
-      break;
-    } catch (e) {
-      tried.push(`${target}: ${String((e && e.message) || e).split("\n")[0]}`);
-    }
-  }
-  if (!process.env.PRISMA_QUERY_ENGINE_LIBRARY) {
-    log("no bundled database engine could be loaded on this server:\n  " + tried.join("\n  "));
-    process.exit(1);
-  }
-}
-
-// Prisma opens (CPU count × 2 + 1) MySQL connections by default; shared MySQL
-// allows only a few per user, so cap the pool unless the URL already sets it.
-if (!/[?&]connection_limit=/.test(process.env.DATABASE_URL)) {
-  process.env.DATABASE_URL += (process.env.DATABASE_URL.includes("?") ? "&" : "?") + "connection_limit=3";
-}
+// Start the web server straight away: LiteSpeed/Passenger restart apps that
+// don't start listening within a few seconds. Database tables are created or
+// updated alongside it; /api/health reports when the database is reachable.
+require("./app/server.js");
+log(`web server starting; uploads stored in ${process.env.UPLOAD_DIR}`);
 
 require("./app/migrate.js")(path.join(__dirname, "app", "migrations"))
-  .then(() => {
-    log(`database ready; uploads stored in ${process.env.UPLOAD_DIR}; starting web server`);
-    require("./app/server.js");
-  })
-  .catch((err) => {
-    log("could not prepare the database:", err && err.message ? err.message : err);
-    process.exit(1);
-  });
+  .then(() => log("database ready"))
+  .catch((err) => log("could not prepare the database:", (err && err.message) || err));

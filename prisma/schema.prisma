@@ -5,10 +5,11 @@
 // intentionally absent: they will come from Broadwing's central identity service.
 
 generator client {
-  provider      = "prisma-client-js"
-  // "native" for development; the RHEL targets cover CloudLinux / AlmaLinux
-  // shared hosting such as FastComet; Debian covers most VPS images.
-  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-1.1.x", "rhel-openssl-3.0.x", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
+  provider   = "prisma-client-js"
+  // Rust-free client: queries are compiled in WebAssembly and sent through the
+  // pure-JavaScript `mariadb` driver. No native engine binaries or engine
+  // threads, which shared hosting (CloudLinux / LiteSpeed) handles badly.
+  engineType = "client"
 }
 
 datasource db {

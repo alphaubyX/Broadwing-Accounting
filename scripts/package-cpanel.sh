@@ -13,9 +13,18 @@ mkdir -p "$OUT/app"
 cp -a .next/standalone/. "$OUT/app/"
 cp -a .next/static "$OUT/app/.next/static"
 [ -d public ] && cp -a public "$OUT/app/public"
-# Prisma query engines for every Linux target (not always picked up by tracing).
+# Generated Prisma client incl. the WebAssembly query compiler, and the
+# MariaDB/MySQL driver adapter used by migrate.js (not always picked up by tracing).
 mkdir -p "$OUT/app/node_modules/.prisma/client"
 cp -a node_modules/.prisma/client/. "$OUT/app/node_modules/.prisma/client/"
+for pkg in @prisma/adapter-mariadb @prisma/driver-adapter-utils @prisma/debug mariadb denque iconv-lite lru-cache safer-buffer @types/geojson; do
+  if [ -d "node_modules/$pkg" ] && [ ! -d "$OUT/app/node_modules/$pkg" ]; then
+    mkdir -p "$OUT/app/node_modules/$(dirname "$pkg")"
+    cp -a "node_modules/$pkg" "$OUT/app/node_modules/$pkg"
+  fi
+done
+# No native engines are needed any more.
+rm -f "$OUT"/app/node_modules/.prisma/client/libquery_engine-*
 cp -a prisma/migrations "$OUT/app/migrations"
 cp deploy/migrate.js "$OUT/app/migrate.js"
 cp deploy/app.js "$OUT/app.js"
