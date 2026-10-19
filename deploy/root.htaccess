@@ -1,0 +1,22 @@
+# Broadwing Accounting
+# Used when the domain's web folder is the app folder itself (common on cPanel).
+# Every request is served from public/; the code, settings (.env) and uploaded
+# files in the other folders are never reachable from the web.
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Let cPanel AutoSSL / Let's Encrypt verify the domain.
+    RewriteCond %{REQUEST_URI} !^/\.well-known/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Without mod_rewrite nothing would be protected, so refuse everything.
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

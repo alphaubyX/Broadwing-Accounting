@@ -2,10 +2,11 @@
 
 ## Principles
 
+0. **Plain PHP hosting.** Laravel + MySQL, packaged with its dependencies, so it runs on shared cPanel hosting with no Node.js, Composer or terminal. A first-run installer writes `.env`; database updates run automatically on the first request after an upload (`app/Http/Middleware/ApplyDatabaseUpdates.php`).
 1. **Simple on the surface, correct underneath.** Users see sales, expenses and purchase orders. The app keeps a real double-entry general ledger behind them.
-2. **The ledger is derived, not typed.** Journal entries are generated from source documents by pure functions (`src/lib/accounting/posting.ts`). When a document changes, its journal entries are deleted and regenerated inside the same database transaction, so the books always match the documents.
-3. **Every record belongs to an organization.** All tables carry `organizationId`. The app currently runs in *single-organization mode* (`src/lib/org.ts` picks the first organization). Moving to multi-tenant under Broadwing's central identity means changing that one function.
-4. **No sign-in yet, by design.** Logins will come from the central Broadwing platform. `OrgUser` already records who has access to an organization and with which role (Owner, Admin, Editor, Viewer; see `src/lib/roles.ts`). Roles are not enforced until sign-in exists. The integration point is `requireOrganization()` in `src/lib/org.ts`.
+2. **The ledger is derived, not typed.** Journal entries are generated from source documents by pure functions (`app/Accounting/Posting.php`). When a document changes, its journal entries are deleted and regenerated inside the same database transaction, so the books always match the documents.
+3. **Every record belongs to an organization.** All tables carry `organizationId`. The app currently runs in *single-organization mode* (`app/Support/CurrentOrganization.php` picks the first organization). Moving to multi-tenant under Broadwing's central identity means changing that one function.
+4. **No individual sign-in yet, by design.** A shared app password (`APP_PASSWORD_HASH` in `.env`, checked by `RequirePassword` middleware) protects the app. Logins will come from the central Broadwing platform; `org_users` already records who has access and with which role (Owner, Admin, Editor, Viewer; `App\Models\OrgUser::ROLES`). The integration point is `App\Support\CurrentOrganization`.
 
 ## Main flows and their postings
 
@@ -24,13 +25,13 @@ Tax on purchases is debited to the same tax account that sales tax is credited t
 
 ## Fiscal year and currency
 
-The fiscal year is defined by its end date (month and day, `src/lib/fiscal.ts`). It drives the default report period and "profit this fiscal year" on the dashboard. The business currency can only change while there are no journal entries, because amounts are never converted.
+The fiscal year is defined by its end date (month and day, `app/Accounting/Fiscal.php`). It drives the default report period and "profit this fiscal year" on the dashboard. The business currency can only change while there are no journal entries, because amounts are never converted.
 
 ## Data export
 
-`src/lib/export.ts` builds the exports served by `/api/export/[kind]`: `transactions.xlsx` (ExcelJS), `transactions.csv` (journal lines, with spreadsheet-formula injection guarded) and `receipts.zip` (JSZip, one folder per transaction number).
+`app/Services/Exporter.php` builds the exports: `transactions.xlsx` (PhpSpreadsheet), `transactions.csv` (journal lines, with spreadsheet-formula injection guarded) and `receipts.zip` (ZipArchive, one folder per transaction number).
 
-Which accounts are used for receivables, payables, tax, the default bank and the default categories is configurable under **Settings → Account mapping** (`AccountMapping` table, keys in `src/lib/accounting/mapping.ts`).
+Which accounts are used for receivables, payables, tax, the default bank and the default categories is configurable under **Settings → Account mapping** (`account_mappings` table, keys in `app/Accounting/Mapping.php`).
 
 ## Document life cycle
 
@@ -46,18 +47,18 @@ Which accounts are used for receivables, payables, tax, the default bank and the
 
 ## Files
 
-Logos and receipts are stored on local disk under `UPLOAD_DIR` through `src/lib/storage.ts`. They are served through `/api/files/[id]` and `/api/logo`, scoped to the organization and sandboxed. To move to S3 or Azure Blob storage, replace that one module. The "Take photo" button uses the browser's camera capture, so on phones it opens the camera directly.
+Logos and receipts are stored in `storage/app/private` (outside the web root) through `app/Services/AttachmentStore.php`, and served only through the app (`/files/{id}`, `/logo`), scoped to the organization and sandboxed. Laravel's filesystem layer can switch this to S3-compatible storage by configuration. The "Take photo" button uses the browser's camera capture, so on phones it opens the camera directly.
 
 ## Code map
 
 ```
-src/lib/accounting/posting.ts   pure posting rules (unit-tested in posting.test.ts)
-src/lib/accounting/ledger.ts    repostSale / repostExpense / repostPayment / syncPaymentStatus
-src/lib/accounting/reports.ts   account balances, P&L, balance sheet, trial balance
-src/lib/lines.ts                validates line items and computes amounts
-src/lib/sequence.ts             transaction numbering
-src/lib/org.ts                  current organization (future auth integration point)
-src/app/(app)/**/actions.ts     server actions per module
+app/Accounting/Posting.php        pure posting rules (unit-tested in tests/Unit/PostingTest.php)
+app/Accounting/Ledger.php         repostSale / repostExpense / repostPayment / syncPaymentStatus
+app/Accounting/Reports.php        account balances, P&L, balance sheet, trial balance
+app/Services/LinePricer.php       validates line items and computes amounts
+app/Services/Sequence.php         transaction numbering
+app/Support/Documents.php         data for invoice / PO documents (rendered by resources/views/documents/render.blade.php)
+app/Http/Controllers/             one controller per area; Settings/ for the settings pages
 ```
 
 ## Not yet built (suggested next steps)
